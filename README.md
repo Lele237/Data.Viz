@@ -1,140 +1,112 @@
-# Data.Viz
-## 🧠 **Visão Geral do Notebook**
-
-Esse notebook trata de **visualização de dados sobre ataques e vazamentos**, com foco em 2024. Ele carrega um conjunto de dados, faz filtragens e constrói gráficos como:
-
-* Gráfico de linha
-* Sunburst
-* Grafos
-
 ---
 
-### 📦 **1. Importação de bibliotecas**
-
-```python
-import pandas as pd
-import plotly.express as px
-import matplotlib.pyplot as plt
-import seaborn as sns
-```
-
-**Função:**
-
-* `pandas`: manipulação de dados (tabelas)
-* `plotly.express`: gráficos interativos (linha, sunburst)
-* `matplotlib.pyplot` & `seaborn`: gráficos estáticos e estilizados
-
----
-
-### 📂 **2. Leitura do arquivo Excel**
+### **1. Carregamento e pré-processamento dos dados**
 
 ```python
 df = pd.read_excel("Data_Breach_Chronology_sample.xlsx")
-```
-
-**Função:** Carrega o arquivo Excel com os dados de vazamentos.
-
----
-
-### 🧹 **3. Tratamento inicial de datas**
-
-```python
 df['reported_date'] = pd.to_datetime(df['reported_date'], errors='coerce')
-df = df.dropna(subset=['reported_date'])
+df_2024 = df[df['reported_date'].dt.year == 2024]
+df_2024 = df_2024.dropna(subset=['org_name', 'breach_type'])
 ```
 
 **Função:**
 
-* Converte a coluna `reported_date` em datas reais
-* Remove linhas com datas inválidas (para evitar erros)
+* Lê um arquivo `.xlsx` contendo registros de vazamentos.
+* Converte a coluna `reported_date` para datetime.
+* Filtra os dados para considerar apenas incidentes reportados em 2024.
+* Remove registros que não informam organização ou tipo de vazamento.
 
 ---
 
-### 📅 **4. Filtra apenas o ano de 2024**
+### **2. Visualização em Grafo**
 
 ```python
-df_2024 = df[df['reported_date'].dt.year == 2024]
+G = nx.Graph()
+for _, row in df_2024.iterrows():
+    org = row['org_name']
+    breach = row['breach_type']
+    G.add_node(org, type='organization')
+    G.add_node(breach, type='breach')
+    G.add_edge(org, breach)
 ```
 
-**Função:** Mantém apenas os vazamentos ocorridos em 2024.
+**Função:**
 
----
+* Cria um grafo não direcionado (usando `networkx`) ligando:
 
-### 📊 **5. Gráfico de linha - Organizações únicas por mês**
+  * organizações ↔ tipos de vazamento.
+* Cada organização e tipo de vazamento é um nó.
+* Um aresta é criada entre a organização e o tipo de vazamento correspondente.
 
 ```python
-df_2024['month'] = df_2024['reported_date'].dt.month
-monthly_unique_orgs_2024 = df_2024.groupby('month')['org_name'].nunique().reset_index(name='org_unicas')
-
-fig = px.line(
-    monthly_unique_orgs_2024,
-    x='month',
-    y='org_unicas',
-    markers=True,
-    title='Organizações com Vazamentos por Mês (2024)',
-    labels={'month': 'Mês', 'org_unicas': 'Organizações Únicas'}
-)
-fig.show()
+nx.draw_networkx_nodes(...) 
+nx.draw_networkx_edges(...)
 ```
 
-**Objetivo:** Mostra quantas **empresas distintas** sofreram vazamento em cada mês de 2024.
+**Resultado:**
+Um grafo com dois tipos de nós:
 
-* `groupby`: agrupa os dados por mês
-* `nunique()`: conta quantas organizações distintas apareceram
-* `px.line()`: plota um gráfico de linha com marcadores
+* **Azul claro**: organizações
+* **Coral claro**: tipos de vazamento
+  Objetivo: visualizar como diferentes organizações estão ligadas a diferentes tipos de brechas.
 
 ---
 
-### 🌞 **6. Gráfico Sunburst**
+### **3. Gráfico Sunburst**
 
 ```python
 sunburst_df = df_2024[['org_name', 'breach_type', 'total_affected']].dropna()
 sunburst_df['total_affected'] = pd.to_numeric(sunburst_df['total_affected'], errors='coerce').fillna(0)
-
-fig_sunburst = px.sunburst(
-    sunburst_df,
-    path=['org_name', 'breach_type'],
-    values='total_affected',
-    title='Distribuição de Vazamentos por Organização e Tipo (2024)'
-)
+fig_sunburst = px.sunburst(...)
 fig_sunburst.show()
 ```
 
-**Objetivo:** Visualizar **como os dados de vazamento estão distribuídos** hierarquicamente:
+**Função:**
 
-* Nível 1: Organização
-* Nível 2: Tipo de vazamento
-* Valor: Total de pessoas afetadas
+* Visualiza a hierarquia:
+
+  * Organização → Tipo de vazamento
+* Tamanho dos setores é proporcional ao número de pessoas afetadas (`total_affected`).
+* Usa `plotly.express.sunburst` para uma visualização interativa.
 
 ---
 
-### 📊 **7. Gráfico de barras - Top organizações afetadas**
+### **4. Evolução temporal dos incidentes**
 
 ```python
-top_orgs = df_2024.groupby('org_name')['total_affected'].sum().sort_values(ascending=False).head(10)
-
-plt.figure(figsize=(10, 6))
-sns.barplot(x=top_orgs.values, y=top_orgs.index, palette='viridis')
-plt.title('Top 10 Organizações por Pessoas Afetadas (2024)')
-plt.xlabel('Total de Pessoas Afetadas')
-plt.ylabel('Organização')
-plt.show()
+df['reported_date'] = pd.to_datetime(df['reported_date'], errors='coerce')
+df = df.dropna(subset=['reported_date'])
+df['year'] = df['reported_date'].dt.year
+df['month'] = df['reported_date'].dt.month
+monthly_by_year = df.groupby(['year', 'month']).size().reset_index(name='num_vazamentos')
 ```
 
-**Objetivo:** Mostrar as 10 organizações que mais afetaram pessoas em 2024.
+**Função:**
 
-* `groupby` + `sum`: soma total de afetados por organização
-* `sort_values`: ordena do maior para o menor
-* `seaborn.barplot`: cria gráfico de barras horizontal
+* Reprocessa a coluna de datas.
+* Cria colunas `year` e `month`.
+* Agrupa por mês e ano para contar o número de vazamentos por período.
+
+```python
+fig = px.line(...)
+fig.show()
+```
+
+**Resultado:**
+
+* Um gráfico de linha que mostra a tendência mensal de incidentes.
+* Cores diferentes representam anos distintos.
+* Usado para identificar sazonalidade ou aumento/redução de casos.
 
 ---
 
-## **Resumo Final**
+### **Resumo Prático**
 
-| Etapa                | O que faz                                                      |
-| -------------------- | -------------------------------------------------------------- |
-| Leitura e tratamento | Converte datas e limpa os dados                                |
-| Filtro por 2024      | Analisa somente os vazamentos ocorridos em 2024                |
-| Gráfico de linha     | Mostra quantas organizações diferentes foram afetadas por mês  |
-| Gráfico sunburst     | Mostra como os vazamentos se distribuem entre empresas e tipos |
-| Gráfico de barras    | Lista as empresas com mais pessoas afetadas                    |
+| Etapa                         | Objetivo                                                             |
+| ----------------------------- | -------------------------------------------------------------------- |
+| **Pré-processamento**         | Limpar e filtrar dados relevantes (2024, colunas essenciais).        |
+| **Grafo (NetworkX)**          | Visualizar a relação entre organizações e tipos de vazamentos.       |
+| **Gráfico Sunburst (Plotly)** | Analisar a gravidade por organização e tipo, via número de afetados. |
+| **Linha temporal (Plotly)**   | Acompanhar a evolução mensal dos incidentes ao longo dos anos.       |
+
+---
