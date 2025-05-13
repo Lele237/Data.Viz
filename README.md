@@ -1,5 +1,3 @@
----
-
 ### **1. Carregamento e pré-processamento dos dados**
 
 ```python
@@ -108,5 +106,3 @@ fig.show()
 | **Grafo (NetworkX)**          | Visualizar a relação entre organizações e tipos de vazamentos.       |
 | **Gráfico Sunburst (Plotly)** | Analisar a gravidade por organização e tipo, via número de afetados. |
 | **Linha temporal (Plotly)**   | Acompanhar a evolução mensal dos incidentes ao longo dos anos.       |
-
----
