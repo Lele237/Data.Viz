@@ -88,14 +88,6 @@ monthly_by_year = df.groupby(['year', 'month']).size().reset_index(name='num_vaz
 ```python
 fig = px.line(...)
 fig.show()
-```
-
-**Resultado:**
-
-* Um gráfico de linha que mostra a tendência mensal de incidentes.
-* Cores diferentes representam anos distintos.
-* Usado para identificar sazonalidade ou aumento/redução de casos.
-
 ---
 
 ### **Resumo Prático**
